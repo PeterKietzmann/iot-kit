@@ -417,6 +417,11 @@ joystick.stop = function() {
                     <div class="h5 text-muted">Illuminance</div>
                     <div class="h1">{{!node.data.illuminance}}</div>
                 </div>
+                <div class="panel-body has-chart" v-if="node.data.power">
+                    <div class="h5 text-muted">Power</div>
+                    <div class="h1">{{!node.data.power}}</div>
+                    <canvas class="chart" :id="'power_chart'+node.ip"></canvas>
+                </div>
                 <div class="panel-body" v-if="node.data.robot">
                     <div class="h5 text-muted">BuggyBot Direction Pad</div>
                     <!-- <div class="h1">{{!node.data.robot}}</div> -->
@@ -498,6 +503,7 @@ var temp_charts = {}
 var pres_charts = {}
 var hum_charts = {}
 var teapot_charts = {}
+var power_charts = {}
 
 var data = {nodes: []}
 var vm = new Vue({
@@ -622,6 +628,15 @@ function update_charts(msg) {
 
         update_hum_charts(msg)
     }
+
+    // power charts management
+    if (msg.endpoint === "/power") {
+        if (!(msg.node in power_charts)) {
+            setup_power_charts(msg.node)
+        }
+
+        update_power_charts(msg)
+    }
 }
 
 function setup_temp_charts(node) {
@@ -703,6 +718,33 @@ function setup_hum_charts(node) {
 
 function update_hum_charts(msg) {
     hum_charts[msg.node][1].append(new Date().getTime(), msg.data.slice(0, -3));
+}
+
+function setup_power_charts(node) {
+    var power_canva = document.getElementById('power_chart' + node)
+    power_canva.setAttribute('width', power_canva.clientWidth)
+    power_canva.setAttribute('height', power_canva.clientHeight)
+    if (power_canva) {
+        power_charts[node] = [new SmoothieChart({ millisPerPixel:5000,
+                                                labels:{ fillStyle:'#545454',
+                                                         precision:0},
+                                                grid:{ strokeStyle: 'transparent',
+                                                       fillStyle:'transparent',
+                                                       borderVisible:false,
+                                                       sharpLines:true },
+                                                minValue: -20,
+                                                maxValue: 20}),
+                            new TimeSeries()]
+        power_charts[node][0].addTimeSeries(power_charts[node][1],
+                                          { strokeStyle: 'rgba(0, 142, 255, 1)',
+                                            fillStyle: 'rgba(0, 142, 255, 0.2)',
+                                            lineWidth: 1.5 });
+        power_charts[node][0].streamTo(power_canva, 500);
+    }
+}
+
+function update_power_charts(msg) {
+    power_charts[msg.node][1].append(new Date().getTime(), msg.data.slice(0, -2));
 }
 
 function setup_teapot_charts(node) {
@@ -814,6 +856,9 @@ function remove_charts(node) {
     }
     if (node in hum_charts) {
         delete hum_charts[node]
+    }
+    if (node in power_charts) {
+        delete power_charts[node]
     }
 }
 
